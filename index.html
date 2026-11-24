@@ -50,6 +50,16 @@
   .opt.correct{background:#e3f6ec;border-color:var(--good);color:#0f5c39}
   .opt.wrong{background:#fde3e8;border-color:var(--bad);color:#8a1d31}
   .opt.dim{opacity:.55}
+  .typeform{display:flex;gap:8px}
+  .typeform input{flex:1;min-width:0;font:inherit;font-size:17px;font-weight:700;padding:13px 14px;border:2px solid var(--line);border-radius:14px;color:var(--ink);background:#fff}
+  .typeform input:focus{outline:none;border-color:#9c90ec}
+  .typeform input.good{border-color:var(--good);background:#e3f6ec;color:#0f5c39;opacity:1}
+  .typeform input.bad{border-color:var(--bad);background:#fde3e8;color:#8a1d31;opacity:1}
+  .typeform .btn{flex:none}
+  .hintmsg{margin:10px 2px 0;font-weight:800;color:#9a6a00}
+  .choicelink{display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:var(--chip);color:#4b3fb5;border:0;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+  .choicelink:hover{background:#e6e1fb}
+  .choicenote{color:var(--muted);font-size:13px;font-weight:700;margin:0 0 10px}
   .result{margin-top:20px;border-top:1px dashed var(--line);padding-top:18px;display:none}
   .result.show{display:block;animation:pop .35s ease}
   @keyframes pop{from{opacity:0;transform:translateY(6px)}}
@@ -150,7 +160,14 @@
     <div id="game" hidden>
       <div class="meta" id="meta"></div>
       <div class="q" id="question"></div>
-      <div class="opts" id="opts"></div>
+      <form class="typeform" id="typeForm" autocomplete="off">
+        <input id="typed" placeholder="Type your answer…" autocapitalize="sentences" autocorrect="off" spellcheck="false" maxlength="200" enterkeyhint="send" aria-label="Your answer">
+        <button class="btn gold" id="submitBtn" type="submit">Submit</button>
+      </form>
+      <p class="hintmsg" id="hintMsg" hidden></p>
+      <button class="choicelink" id="showChoices" type="button" hidden>📋 Long answer? Show choices</button>
+      <p class="choicenote" id="choiceNote" hidden>Pick one:</p>
+      <div class="opts" id="opts" hidden></div>
       <div class="result" id="result">
         <p class="verdict" id="verdict"></p>
         <p class="answer" id="answer"></p>
@@ -336,44 +353,83 @@ function render(q){
   addChip(q.cat); if(q.sub && q.sub!==q.cat) addChip(q.sub);
   addChip(q.diff, "diff-"+q.diff);
   $("question").textContent = q.question;
-  const box = $("opts"); box.innerHTML = "";
-  q.options.forEach(o=>{
+  // typing
+  const inp = $("typed");
+  inp.value = ""; inp.disabled = false; inp.className = "";
+  $("submitBtn").disabled = false; $("typeForm").hidden = false; $("hintMsg").hidden = true;
+  // choices — only offered for long answers
+  const box = $("opts"); box.innerHTML = ""; box.hidden = true; $("choiceNote").hidden = true;
+  (q.options || []).forEach(o=>{
     const b = document.createElement("button"); b.className = "opt"; b.textContent = o;
-    b.onclick = () => choose(o, b);
+    b.onclick = () => submit({choice:o}, b);
     box.appendChild(b);
   });
+  $("showChoices").hidden = !q.long;
   $("result").classList.remove("show");
+  if(!q.result && matchMedia("(pointer:fine)").matches) setTimeout(()=>inp.focus({preventScroll:true}), 50);
 }
 
-async function choose(choice, btn){
+function showChoices(){
+  $("typeForm").hidden = true; $("showChoices").hidden = true; $("hintMsg").hidden = true;
+  $("opts").hidden = false; $("choiceNote").hidden = false;
+}
+$("showChoices").onclick = showChoices;
+$("typeForm").onsubmit = e => {
+  e.preventDefault();
+  const v = $("typed").value.trim();
+  if(!v){ $("typed").focus(); return; }
+  submit({typed:v});
+};
+
+function lockInputs(on){
+  [...$("opts").children].forEach(b => b.disabled = on);
+  $("typed").disabled = on; $("submitBtn").disabled = on;
+}
+async function submit(payload, btn){
   if(busy) return; busy = true;
-  const buttons = [...$("opts").children];
-  buttons.forEach(b => b.disabled = true);
-  btn.classList.add("picked");
+  lockInputs(true);
+  if(btn) btn.classList.add("picked");
+  const label = $("submitBtn"); label.textContent = "Checking…";
   try{
-    let r;
-    if(mode === "daily"){
-      r = await call("answer", {day:daily.day, choice});
-      daily.result = r; setStats(r.stats); loadBoard();
-    } else {
-      r = await call("bonusAnswer", {id:bonus.id, choice});
+    const r = mode === "daily"
+      ? await call("answer", Object.assign({day:daily.day}, payload))
+      : await call("bonusAnswer", Object.assign({id:bonus.id}, payload));
+    if(r.close){                                   // nearly right: one more go
+      const h = $("hintMsg"); h.hidden = false;
+      h.textContent = "So close! Check your spelling, or try a little more or less detail. You get one more try.";
+      lockInputs(false); $("typed").focus(); $("typed").select();
+      return;
     }
+    if(mode === "daily"){ daily.result = r; setStats(r.stats); loadBoard(); }
     reveal(r);
   }catch(e){
     if(e.message !== "auth"){
-      btn.classList.remove("picked"); buttons.forEach(b => b.disabled = false);
+      if(btn) btn.classList.remove("picked");
+      lockInputs(false);
       toast("Couldn't save your answer. Please try again.");
     }
-  }finally{ busy = false; }
+  }finally{ busy = false; label.textContent = "Submit"; }
 }
 
 function reveal(r){
-  [...$("opts").children].forEach(b=>{
-    b.disabled = true; b.classList.remove("picked");
-    if(b.textContent === r.answer) b.classList.add("correct");
-    else if(b.textContent === r.choice) b.classList.add("wrong");
-    else b.classList.add("dim");
-  });
+  const buttons = [...$("opts").children];
+  // answered by picking a choice (now, or earlier on this or another device)?
+  const viaChoices = !$("opts").hidden || (!$("typed").value && buttons.some(b => b.textContent === r.choice));
+  $("hintMsg").hidden = true; $("showChoices").hidden = true;
+  if(viaChoices){
+    $("typeForm").hidden = true; $("opts").hidden = false; $("choiceNote").hidden = true;
+    buttons.forEach(b=>{
+      b.disabled = true; b.classList.remove("picked");
+      if(b.textContent === r.answer || b.textContent === r.answerChoice) b.classList.add("correct");
+      else if(b.textContent === r.choice) b.classList.add("wrong");
+      else b.classList.add("dim");
+    });
+  } else {
+    $("opts").hidden = true; $("choiceNote").hidden = true; $("typeForm").hidden = false;
+    const inp = $("typed"); inp.value = r.choice || ""; inp.disabled = true; $("submitBtn").disabled = true;
+    inp.className = r.correct ? "good" : "bad";
+  }
+  if(mode === "daily" && daily) daily.viaChoices = viaChoices;
   const v = $("verdict");
   v.textContent = r.correct ? pick(["Bibbidi-bobbidi-YES!","Magical! ✨","You nailed it!","Spot on!"]) : pick(["Oh, bother.","Not quite!","So close!","Better luck tomorrow!"]);
   v.className = "verdict " + (r.correct ? "good" : "bad");
@@ -402,7 +458,7 @@ $("practiceBtn").onclick = startBonus;
 $("shareBtn").onclick = async ()=>{
   if(!daily || !daily.result) return;
   const s = getStats(), ok = daily.result.correct;
-  const text = `Daily Disney Trivia #${daily.num} ${ok ? "✅" : "❌"}` +
+  const text = `Daily Disney Trivia #${daily.num} ${ok ? "✅" : "❌"}${daily.viaChoices ? " (multiple choice)" : ""}` +
                (s.streak>1 && ok ? ` 🔥${s.streak}` : "") +
                `\n${daily.diff ? daily.diff+" · " : ""}${daily.cat}\n${location.href}`;
   try{
