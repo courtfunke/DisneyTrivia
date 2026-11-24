@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Disney Trivia</title>
+<meta name="description" content="One new Disney trivia question every day. Members only.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#0b1033; --bg2:#1d1b5e; --card:#ffffff; --ink:#1b1840; --muted:#6b6890;
+    --gold:#f5c451; --gold-dk:#c9951c; --good:#1f9d63; --bad:#d6455d; --line:#e6e3f5;
+    --chip:#f1eefc;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{margin:0;min-height:100%}
+  body{
+    font-family:Nunito,system-ui,sans-serif;color:var(--ink);
+    background:radial-gradient(1200px 700px at 50% -10%, #3b2f8f 0%, var(--bg2) 40%, var(--bg1) 100%) fixed;
+    background-color:var(--bg1);
+    padding:24px 16px 48px;
+  }
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+  .stars i{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;opacity:.7;animation:tw 3s infinite ease-in-out}
+  @keyframes tw{50%{opacity:.15}}
+  .wrap{position:relative;z-index:1;max-width:620px;margin:0 auto}
+  header{text-align:center;color:#fff;margin-bottom:20px}
+  h1{font-family:Fraunces,Georgia,serif;font-weight:800;font-size:clamp(30px,7vw,44px);margin:0;letter-spacing:.5px}
+  h1 span{color:var(--gold)}
+  .sub{opacity:.8;margin-top:6px;font-weight:600}
+  .card{background:var(--card);border-radius:22px;padding:26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  .chip{background:var(--chip);color:#4b3fb5;border-radius:999px;padding:5px 11px;font-size:13px;font-weight:800}
+  .chip.diff-Easy{background:#e3f6ec;color:#167a4b}
+  .chip.diff-Medium{background:#fff3d6;color:#9a6a00}
+  .chip.diff-Hard{background:#ffe6dc;color:#b04516}
+  .chip.diff-Expert{background:#fde3e8;color:#a3243c}
+  .q{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:clamp(20px,4.6vw,25px);line-height:1.35;margin:4px 0 20px}
+  .opts{display:grid;gap:10px}
+  .opt{
+    text-align:left;font:inherit;font-weight:700;font-size:16px;color:var(--ink);
+    background:#fff;border:2px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;
+    transition:transform .08s, border-color .15s, background .15s;
+  }
+  .opt:hover:not(:disabled){border-color:#9c90ec;transform:translateY(-1px)}
+  .opt:disabled{cursor:default}
+  .opt.picked{border-color:#9c90ec;background:#f7f5ff}
+  .opt.correct{background:#e3f6ec;border-color:var(--good);color:#0f5c39}
+  .opt.wrong{background:#fde3e8;border-color:var(--bad);color:#8a1d31}
+  .opt.dim{opacity:.55}
+  .result{margin-top:20px;border-top:1px dashed var(--line);padding-top:18px;display:none}
+  .result.show{display:block;animation:pop .35s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}}
+  .verdict{font-family:Fraunces,Georgia,serif;font-size:24px;font-weight:800;margin:0 0 6px}
+  .verdict.good{color:var(--good)} .verdict.bad{color:var(--bad)}
+  .answer{font-weight:800;margin:0 0 8px}
+  .note{background:#f7f5ff;border-left:4px solid var(--gold);padding:10px 12px;border-radius:8px;color:#3d3a66;margin:10px 0 0}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:18px 0 6px;text-align:center}
+  .stat b{display:block;font-size:24px;font-family:Fraunces,Georgia,serif}
+  .stat span{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center;justify-content:space-between}
+  .btn{font:inherit;font-weight:800;border:0;border-radius:12px;padding:12px 16px;cursor:pointer}
+  .btn.gold{background:var(--gold);color:#3a2700;box-shadow:0 3px 0 var(--gold-dk)}
+  .btn.gold:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-dk)}
+  .btn.ghost{background:var(--chip);color:#4b3fb5}
+  .btn.full{width:100%;padding:14px 16px;font-size:17px}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .next{color:var(--muted);font-weight:700;font-size:14px}
+  .next b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .practice-tag{background:#4b3fb5;color:#fff}
+  .center{text-align:center;color:var(--muted);padding:30px 0}
+  .err{color:var(--bad);font-weight:700}
+  footer{text-align:center;color:rgba(255,255,255,.55);font-size:13px;margin-top:18px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1b1840;color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;transition:.25s;z-index:20;max-width:calc(100% - 32px);text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .badges{display:flex;justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:999px;padding:6px 12px;font-weight:800;font-size:14px}
+  .badge b{color:var(--gold)}
+  .week{display:flex;justify-content:center;gap:6px;margin:14px 0 4px}
+  .day{width:34px;text-align:center;font-size:11px;font-weight:800;color:var(--muted)}
+  .dot{width:26px;height:26px;border-radius:50%;margin:4px auto 0;background:#eeecf7;display:grid;place-items:center;font-size:13px;color:#fff}
+  .dot.win{background:var(--good)} .dot.loss{background:var(--bad)} .dot.today{outline:2px solid var(--gold);outline-offset:2px}
+  .streakmsg{text-align:center;font-weight:800;color:#4b3fb5;margin:8px 0 0}
+
+  /* account */
+  .acct{margin-top:14px;color:#fff;font-weight:700;font-size:14px}
+  .acct b{color:var(--gold)}
+  .link{background:none;border:0;padding:0;color:#fff;opacity:.75;font:inherit;font-weight:800;cursor:pointer;text-decoration:underline}
+
+  /* sign-in */
+  .login{max-width:420px;margin:0 auto}
+  .login .castle{font-size:40px;text-align:center;margin-bottom:4px}
+  .login h2{font-family:Fraunces,Georgia,serif;margin:0 0 6px;text-align:center;font-size:26px}
+  .login p{color:var(--muted);margin:0 0 18px;font-weight:600;text-align:center}
+  .login label{display:block;font-weight:800;font-size:14px;margin-bottom:14px}
+  .login input{display:block;width:100%;margin-top:6px;font:inherit;font-size:17px;padding:12px 13px;border:2px solid var(--line);border-radius:12px;color:var(--ink);background:#fff}
+  .login input:focus{outline:none;border-color:#9c90ec}
+  .login .err{min-height:1.2em;margin:0 0 10px;text-align:center;color:var(--bad)}
+  .login .fine{font-size:13px;margin:14px 0 0}
+
+  /* leaderboard */
+  .board{margin-top:18px}
+  .board h2{font-family:Fraunces,Georgia,serif;margin:0 0 4px;font-size:22px}
+  .board .bsub{color:var(--muted);font-size:13px;font-weight:700;margin:0 0 12px}
+  .board ol{list-style:none;margin:0;padding:0}
+  .board li{display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--line);border-radius:10px}
+  .board li:last-child{border-bottom:0}
+  .board li.me{background:#fff8e3}
+  .board .rk{width:28px;text-align:center;font-weight:800;color:var(--muted)}
+  .board .nm{flex:1;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .board .st{font-weight:800;font-variant-numeric:tabular-nums}
+  .board .bs{font-size:12px;color:var(--muted);font-weight:700;min-width:92px;text-align:right}
+  @media (max-width:420px){ .card{padding:22px 16px} .stat b{font-size:20px} .board .bs{min-width:0} }
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<div class="wrap">
+  <header>
+    <h1>Daily <span>Disney</span> Trivia</h1>
+    <div class="sub" id="dateLine">&nbsp;</div>
+    <div class="badges" id="badges" hidden>
+      <div class="badge" title="Days in a row answered correctly">🔥 Streak <b id="hStreak">0</b></div>
+      <div class="badge" title="Days in a row played">📅 Played <b id="hPlay">0</b> days in a row</div>
+    </div>
+    <div class="acct" id="acct" hidden></div>
+  </header>
+
+  <!-- sign-in -->
+  <form class="card login" id="loginCard" hidden>
+    <div class="castle">🏰</div>
+    <h2>Members only</h2>
+    <p>Sign in with the username and password you were given.</p>
+    <label>Username
+      <input id="inUser" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    </label>
+    <label>Password
+      <input id="inPass" type="password" autocomplete="current-password" required>
+    </label>
+    <p class="err" id="loginErr"></p>
+    <button type="submit" class="btn gold full" id="loginBtn">Sign in</button>
+    <p class="fine">Don't have a login? Ask the game's organizer for one.</p>
+  </form>
+
+  <!-- game -->
+  <main class="card" id="card" hidden>
+    <div class="center" id="loading">Loading today's question…</div>
+    <div id="game" hidden>
+      <div class="meta" id="meta"></div>
+      <div class="q" id="question"></div>
+      <div class="opts" id="opts"></div>
+      <div class="result" id="result">
+        <p class="verdict" id="verdict"></p>
+        <p class="answer" id="answer"></p>
+        <p class="note" id="note" hidden></p>
+        <div id="statsBox">
+          <div class="stats">
+            <div class="stat"><b id="sPlayed">0</b><span>Played</span></div>
+            <div class="stat"><b id="sPct">0%</b><span>Correct</span></div>
+            <div class="stat"><b id="sStreak">0</b><span>Streak</span></div>
+            <div class="stat"><b id="sMax">0</b><span>Best</span></div>
+          </div>
+          <div class="week" id="week"></div>
+          <p class="streakmsg" id="streakMsg"></p>
+        </div>
+        <div class="row">
+          <div class="next" id="nextLine">Next question in <b id="countdown">--:--:--</b></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn ghost" id="practiceBtn">Bonus question</button>
+            <button class="btn gold" id="shareBtn">Share</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section class="card board" id="boardCard" hidden>
+    <h2>🏆 Streak Leaderboard</h2>
+    <p class="bsub">Ranked by current streak, then best streak.</p>
+    <ol id="board"></ol>
+  </section>
+
+  <footer>A new question every day at midnight (your local time).</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================== SETTINGS ================== */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-c7-QZyPLc-DShRAPcFent3SgdxWkg_t9IpMR9dPjRkbQfhIVsMW2DGIqR4gohefMLQ/exec";           // paste your Apps Script Web app URL here (ends in /exec)
+const START_DATE = [2026, 11, 23];  // puzzle #1 — must match START_DATE in Code.gs
+/* ============================================== */
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+// starry background
+(function(){ const s=$("stars"); for(let i=0;i<70;i++){ const e=document.createElement("i");
+  e.style.left=Math.random()*100+"%"; e.style.top=Math.random()*100+"%";
+  e.style.animationDelay=(Math.random()*3)+"s"; const z=Math.random()<.2?3:2; e.style.width=e.style.height=z+"px"; s.appendChild(e);} })();
+
+// ---------- helpers ----------
+function dayKey(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function dayNumber(d){
+  const a = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const b = Date.UTC(START_DATE[0], START_DATE[1]-1, START_DATE[2]);
+  return Math.floor((a-b)/86400000);
+}
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2400); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+// ---------- server ----------
+const getToken = () => store.get("ddt_token", null);
+async function api(payload){
+  // text/plain body avoids a CORS preflight, which Apps Script doesn't support
+  const r = await fetch(SCRIPT_URL, {method:"POST", body: JSON.stringify(payload)});
+  if(!r.ok) throw new Error("The game server returned an error ("+r.status+").");
+  return r.json();
+}
+async function call(action, extra){
+  const r = await api(Object.assign({action, token:getToken()}, extra||{}));
+  if(r.auth){ signOut("Please sign in again."); throw new Error("auth"); }
+  if(!r.ok) throw new Error(r.error || "Something went wrong.");
+  return r;
+}
+
+// ---------- stats ----------
+function getStats(){
+  return Object.assign({played:0,correct:0,streak:0,max:0,last:null,lastCorrectDay:null,
+                        playStreak:0,maxPlay:0,history:{}}, store.get("ddt_stats",{}));
+}
+function setStats(s){ if(s){ store.set("ddt_stats", s); showStats(); } }
+function showStats(){
+  const s = getStats();
+  const today = dayNumber(new Date());
+  const streak = (s.lastCorrectDay !== null && today - s.lastCorrectDay <= 1) ? s.streak : 0;
+  const playStreak = (s.last !== null && today - s.last <= 1) ? s.playStreak : 0;
+  $("sPlayed").textContent = s.played;
+  $("sPct").textContent = s.played ? Math.round(100*s.correct/s.played)+"%" : "0%";
+  $("sStreak").textContent = streak;
+  $("sMax").textContent = s.max;
+  $("hStreak").textContent = streak;
+  $("hPlay").textContent = playStreak;
+
+  const week = $("week"); week.innerHTML = "";
+  for(let i=6;i>=0;i--){
+    const dn = today - i, d = new Date(); d.setDate(d.getDate()-i);
+    const r = s.history[dn];
+    const el = document.createElement("div"); el.className = "day";
+    el.innerHTML = `${d.toLocaleDateString(undefined,{weekday:"short"}).slice(0,2)}<div class="dot ${r===1?"win":r===0?"loss":""} ${i===0?"today":""}">${r===1?"✓":r===0?"✕":""}</div>`;
+    week.appendChild(el);
+  }
+
+  const milestones = {3:"3 in a row — you're on a roll!",7:"A full week streak! 🎉",14:"Two weeks straight! 🌟",30:"30-day streak — true Disney Legend! 🏆",50:"50 days! Incredible! 🏰",100:"100-day streak! Absolutely magical! ✨"};
+  $("streakMsg").textContent = (s.last===today && s.history[today]===1)
+    ? (milestones[streak] || (streak>1 ? `🔥 ${streak}-day streak! Come back tomorrow to keep it going.` : "Come back tomorrow to start a streak!"))
+    : (s.last===today ? "Streak reset — start a new one tomorrow!" : "");
+}
+
+// ---------- sign in / out ----------
+function showLogin(msg){
+  $("loginCard").hidden = false; $("card").hidden = true; $("boardCard").hidden = true;
+  $("badges").hidden = true; $("acct").hidden = true;
+  $("loginErr").textContent = msg || "";
+  setTimeout(()=>$("inUser").focus(), 50);
+}
+function showSignedIn(name){
+  $("loginCard").hidden = true; $("card").hidden = false; $("badges").hidden = false;
+  const a = $("acct"); a.hidden = false; a.innerHTML = "";
+  const b = document.createElement("b"); b.textContent = name;
+  const so = document.createElement("button"); so.className = "link"; so.textContent = "Sign out"; so.onclick = () => signOut();
+  a.append("Signed in as ", b, " · ", so);
+}
+function signOut(msg){
+  ["ddt_token","ddt_name","ddt_stats"].forEach(store.del);
+  daily = null;
+  showLogin(msg);
+}
+$("loginCard").onsubmit = async e => {
+  e.preventDefault();
+  const username = $("inUser").value.trim(), password = $("inPass").value;
+  if(!username || !password){ $("loginErr").textContent = "Enter your username and password."; return; }
+  const btn = $("loginBtn"); btn.disabled = true; btn.textContent = "Signing in…"; $("loginErr").textContent = "";
+  try{
+    const r = await api({action:"login", username, password});
+    if(!r.ok){ $("loginErr").textContent = r.error || "Couldn't sign in."; return; }
+    store.set("ddt_token", r.token); store.set("ddt_name", r.name);
+    $("inPass").value = "";
+    setStats(r.stats);
+    showSignedIn(r.name);
+    toast(`Welcome, ${r.name}! ✨`);
+    loadToday();
+  }catch(err){
+    $("loginErr").textContent = "Couldn't reach the game server. Please try again.";
+  }finally{
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+};
+
+// ---------- game ----------
+let today = new Date(), dNum = dayNumber(today), daily = null, bonus = null, mode = "daily", busy = false;
+
+async function loadToday(){
+  mode = "daily";
+  $("loading").hidden = false; $("game").hidden = true;
+  $("loading").textContent = "Loading today's question…";
+  $("dateLine").textContent = today.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"}) + "  ·  #" + (dNum+1);
+  try{
+    const r = await call("today", {day:dNum});
+    daily = r;
+    store.set("ddt_name", r.name); showSignedIn(r.name);
+    setStats(r.stats);
+    render(r);
+    if(r.result) reveal(r.result);
+    loadBoard();
+  }catch(e){
+    if(e.message === "auth") return;
+    $("loading").innerHTML = "";
+    const m = document.createElement("div"); m.className = "err"; m.textContent = "Couldn't load today's question.";
+    const s = document.createElement("small"); s.textContent = e.message;
+    const b = document.createElement("button"); b.className = "btn ghost"; b.style.marginTop = "12px"; b.textContent = "Try again"; b.onclick = loadToday;
+    $("loading").append(m, s, document.createElement("br"), b);
+  }
+}
+
+function render(q){
+  $("loading").hidden = true; $("game").hidden = false;
+  const meta = $("meta"); meta.innerHTML = "";
+  const addChip = (txt, cls) => { if(!txt) return; const c=document.createElement("span"); c.className="chip "+(cls||""); c.textContent=txt; meta.appendChild(c); };
+  if(mode === "bonus") addChip("Bonus round", "practice-tag");
+  addChip(q.cat); if(q.sub && q.sub!==q.cat) addChip(q.sub);
+  addChip(q.diff, "diff-"+q.diff);
+  $("question").textContent = q.question;
+  const box = $("opts"); box.innerHTML = "";
+  q.options.forEach(o=>{
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = o;
+    b.onclick = () => choose(o, b);
+    box.appendChild(b);
+  });
+  $("result").classList.remove("show");
+}
+
+async function choose(choice, btn){
+  if(busy) return; busy = true;
+  const buttons = [...$("opts").children];
+  buttons.forEach(b => b.disabled = true);
+  btn.classList.add("picked");
+  try{
+    let r;
+    if(mode === "daily"){
+      r = await call("answer", {day:daily.day, choice});
+      daily.result = r; setStats(r.stats); loadBoard();
+    } else {
+      r = await call("bonusAnswer", {id:bonus.id, choice});
+    }
+    reveal(r);
+  }catch(e){
+    if(e.message !== "auth"){
+      btn.classList.remove("picked"); buttons.forEach(b => b.disabled = false);
+      toast("Couldn't save your answer. Please try again.");
+    }
+  }finally{ busy = false; }
+}
+
+function reveal(r){
+  [...$("opts").children].forEach(b=>{
+    b.disabled = true; b.classList.remove("picked");
+    if(b.textContent === r.answer) b.classList.add("correct");
+    else if(b.textContent === r.choice) b.classList.add("wrong");
+    else b.classList.add("dim");
+  });
+  const v = $("verdict");
+  v.textContent = r.correct ? pick(["Bibbidi-bobbidi-YES!","Magical! ✨","You nailed it!","Spot on!"]) : pick(["Oh, bother.","Not quite!","So close!","Better luck tomorrow!"]);
+  v.className = "verdict " + (r.correct ? "good" : "bad");
+  $("answer").textContent = (r.correct ? "Answer: " : "The answer was: ") + r.answer;
+  const n = $("note"); n.hidden = !r.note; n.textContent = r.note || "";
+  $("statsBox").hidden = mode !== "daily";
+  $("shareBtn").hidden = mode !== "daily";
+  $("practiceBtn").textContent = mode === "bonus" ? "Another bonus" : "Bonus question";
+  showStats();
+  $("result").classList.add("show");
+}
+
+async function startBonus(){
+  if(busy) return; busy = true;
+  const btn = $("practiceBtn"); btn.disabled = true;
+  try{
+    const r = await call("bonus");
+    bonus = r; mode = "bonus";
+    render(r);
+    window.scrollTo({top:0, behavior:"smooth"});
+  }catch(e){ if(e.message !== "auth") toast("Couldn't load a bonus question."); }
+  finally{ busy = false; btn.disabled = false; }
+}
+$("practiceBtn").onclick = startBonus;
+
+$("shareBtn").onclick = async ()=>{
+  if(!daily || !daily.result) return;
+  const s = getStats(), ok = daily.result.correct;
+  const text = `Daily Disney Trivia #${daily.num} ${ok ? "✅" : "❌"}` +
+               (s.streak>1 && ok ? ` 🔥${s.streak}` : "") +
+               `\n${daily.diff ? daily.diff+" · " : ""}${daily.cat}\n${location.href}`;
+  try{
+    if(navigator.share) await navigator.share({text});
+    else { await navigator.clipboard.writeText(text); toast("Copied to clipboard!"); }
+  }catch(e){}
+};
+
+async function loadBoard(){
+  try{
+    const j = await call("leaderboard", {today:dNum});
+    const ol = $("board"); ol.innerHTML = "";
+    j.board.forEach((p,i)=>{
+      const li = document.createElement("li");
+      if(p.me) li.className = "me";
+      li.innerHTML = `<span class="rk">${["🥇","🥈","🥉"][i] || i+1}</span><span class="nm"></span>` +
+                     `<span class="st">🔥 ${Number(p.streak)}</span><span class="bs">Best ${Number(p.best)} · ${Number(p.pct)}%</span>`;
+      li.querySelector(".nm").textContent = p.name;
+      ol.appendChild(li);
+    });
+    $("boardCard").hidden = !j.board.length;
+  }catch(e){}
+}
+
+// countdown + auto-rollover at midnight
+setInterval(()=>{
+  const now = new Date();
+  if(dayKey(now) !== dayKey(today)){ today = now; dNum = dayNumber(now); if(getToken()) loadToday(); }
+  const mid = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
+  let s = Math.max(0, Math.floor((mid-now)/1000));
+  const h=String(Math.floor(s/3600)).padStart(2,"0"), m=String(Math.floor(s%3600/60)).padStart(2,"0"), sec=String(s%60).padStart(2,"0");
+  $("countdown").textContent = `${h}:${m}:${sec}`;
+}, 1000);
+
+// start
+$("dateLine").textContent = today.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+if(!SCRIPT_URL){
+  $("card").hidden = false;
+  $("loading").innerHTML = '<span class="err">Almost ready!</span><br><small>Paste your Apps Script Web app URL into SCRIPT_URL in index.html.</small>';
+} else if(getToken()){
+  showSignedIn(store.get("ddt_name","") || "you");
+  showStats();
+  loadToday();
+} else {
+  showLogin();
+}
+</script>
+</body>
+</html>
